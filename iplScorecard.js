@@ -1,6 +1,10 @@
 // const url = "https://www.espncricinfo.com/series/ipl-2020-21-1210595/chennai-super-kings-vs-mumbai-indians-41st-match-1216521/full-scorecard";
 const request = require("request");
 const cheerio = require("cheerio");
+const fs = require("fs");
+const path = require("path");
+const json = require("json");
+const xlsx = require("xlsx");
 
 function processScorecard(url) {
     request(url, cb);
@@ -55,15 +59,69 @@ function extractMatchDetails(html) {
                 let sr = $(allCols[7]).text().trim();
             // }
             console.log(playerName, runs, balls, fours, sixes, sr);
+            processPlayer(teamName, playerName, runs, balls, fours, sixes, sr, opponentName, venue, date, result);
         }
     }
-    // let teamName = $(innings[i]).find("5").text();
-
-
-    // console.log(htmlStr);
-    // console.log(scorecard1.length);
-    // getAllMatchesLink("https://www.espncricinfo.com" + link);
 }
+
+function processPlayer(teamName, playerName, runs, balls, fours, sixes, sr, opponentName, venue, date, result) {
+    let teamPath = path.join(__dirname, "ipl", teamName);
+    dirCreator(teamPath);
+    let filePath = path.join(teamPath, playerName + ".xlsx");
+    let content = readExcel(filePath, playerName);
+    let playerObj = {
+        teamName, 
+        playerName,
+        runs, 
+        balls,
+        fours,
+        sixes,
+        sr,
+        opponentName,
+        venue,
+        date,
+        result
+    }
+    content.push(playerObj);
+    createExcel(content, playerName, filePath);
+}
+
+
+function dirCreator(FilePath) {
+    if(!fs.existsSync(FilePath)) fs.mkdirSync(FilePath);
+}
+
+
+function createExcel(data, sheetName, fileName) {
+    // way to create and copy data in an excel file 
+    // wb -> filePath, ws -> name, json data
+    // new worksheet
+    let newWB = xlsx.utils.book_new();
+
+    // json data -> excel format convert
+    let newWS  = xlsx.utils.json_to_sheet(data);
+
+    // takes input -> wb, ws, sheetname
+    xlsx.utils.book_append_sheet(newWB, newWS, sheetName);
+
+    // takes input -> filePath
+    xlsx.writeFile(newWB, fileName);
+}
+
+
+function readExcel(excelFile, sheet) {
+    if(!fs.existsSync(excelFile)) return [];
+    
+    // way to read an excel file
+    // workbook get
+    let wb = xlsx.readFile(excelFile);
+    // sheet
+    let excelData = wb.Sheets[sheet];
+    // sheet data get
+    let ans = xlsx.utils.sheet_to_json(excelData);
+    return ans;
+}
+
 
 module.exports = {
     ps: processScorecard
